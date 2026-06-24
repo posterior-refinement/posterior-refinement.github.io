@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="description"
-  content="Posterior Refinement: any-order language generation via flow maps that self-correct their own drafts at inference time.">
-  <meta name="keywords" content="Posterior Refinement, FMLM+, Flow Map Language Models, Any-order Generation, Masked Diffusion, Self-correction">
+  content="Posterior Refinement: fast language generation via any-order flow maps that draft a full sequence in one step and self-correct their own low-confidence tokens at inference time.">
+  <meta name="keywords" content="Posterior Refinement, FMLM+, Flow Map Language Models, Any-order Generation, Masked Diffusion, Self-correction, Iterative Refinement">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Posterior Refinement: Any-Order Language Generation via Flow Maps</title>
+  <title>Posterior Refinement: Fast Language Generation via Any-Order Flow Maps</title>
 
   <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
   rel="stylesheet">
@@ -126,7 +126,7 @@
       <div class="container is-max-desktop">
         <div class="columns is-centered">
           <div class="column has-text-centered">
-            <h1 class="title is-1 publication-title">Posterior Refinement:<br>Any-Order Language Generation via Flow Maps</h1>
+            <h1 class="title is-1 publication-title">Posterior Refinement:<br>Fast Language Generation via Any-Order Flow Maps</h1>
             <div class="is-size-5 publication-authors">
               <span class="author-block">
                 <a href="https://mananag007.github.io">Manan Agarwal</a><sup>*1</sup>,</span>
@@ -180,7 +180,7 @@
             </span>
             <!-- Code Link. -->
             <span class="link-block">
-              <a href="https://github.com/MananAg007/fmlm_plus"
+              <a href="https://github.com/MananAg007/posterior-refinement"
               class="external-link button is-normal is-rounded is-dark">
               <span class="icon">
                 <i class="fab fa-github"></i>
@@ -216,20 +216,22 @@
           <h2 class="title is-5">TL;DR</h2>
           <div class="content has-text-justified">
             <p>
-              Masked diffusion models decide how confidently to commit each token <em>a priori</em> &mdash; before seeing the rest of the
-              sequence &mdash; and cannot fix mistakes that only become visible once a full draft exists.
-              We introduce <strong>Posterior Refinement</strong>, an inference strategy built on
-              <strong>Flow Map Language Models (FMLM+)</strong> that scores tokens <em>a posteriori</em>: it generates a complete draft in a
-              single forward pass, then re-noises and regenerates only the low-confidence tokens. This lets the model
-              <strong>self-correct in parallel</strong>, matching or surpassing the strongest baselines with up to <strong>25&times; fewer
-              function evaluations</strong>.
+              Masked diffusion models (MDMs) decide how confidently to commit each token <em>a priori</em> &mdash; from noise and
+              context alone, before the rest of the sequence exists &mdash; and their independently factorized posteriors cannot
+              recover from errors that only become visible once a full draft is written. Flow Map Language Models fix this
+              factorization error by transporting the <em>whole sequence jointly</em>, but give up the any-order flexibility of MDMs.
+              We introduce <strong>FMLM+</strong>, which equips flow maps with masking-style noise schedules, and
+              <strong>Posterior Refinement</strong>, an inference strategy that drafts a complete sequence in a single forward pass,
+              scores each token <em>a posteriori</em> against the full draft, then re-noises and regenerates only the low-confidence
+              tokens. This lets the model <strong>self-correct in parallel</strong>, matching or surpassing the strongest baselines
+              with up to <strong>32&times; fewer function evaluations</strong>.
             </p>
-            <figure class="image" style="margin: 24px auto; max-width: 620px;">
-              <img src="figures/refinement_rounds.png" style="width: 100%; height: auto">
+            <figure class="image" style="margin: 24px auto; max-width: 640px;">
+              <img src="figures/teaser_gsm_refinement.png" style="width: 100%; height: auto">
               <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
-                <strong>Self-correction over refinement rounds (TinyStories).</strong>
-                Each round re-noises and regenerates the low-confidence tokens. A few rounds suffice to drop generative perplexity
-                below a 128-NFE masked-diffusion model (dashed line), with the confidence threshold <em>p</em> trading off speed against quality.
+                <strong>Iterative refinement on GSM8K.</strong> FMLM+ <em>unlocks</em> self-correction: a handful of Posterior
+                Refinement rounds surpasses diffusion baselines run at 1024 function evaluations (dashed line), and warm-starting
+                or distilling from a pretrained MDM lifts the curve further still.
               </figcaption>
             </figure>
           </div>
@@ -243,23 +245,20 @@
           <h2 class="title is-3">Abstract</h2>
           <div class="content has-text-justified">
             <p>
-              Non-autoregressive language models based on masked diffusion (MDMs) generate text through iterative unmasking,
-              with quality controlled by how confidently each token is committed. Existing confidence-based decoding estimates
-              this confidence <em>a priori</em> &mdash; conditioning only on noise and context &mdash; and must therefore commit tokens before
-              knowing whether they are globally consistent with the rest of the sequence. We identify this as a fundamental
-              limitation: a-priori confidence cannot detect errors that only become apparent in light of the full generated
-              sequence, and because MDMs factorize token posteriors independently, they cannot in principle recover from such
-              errors without expensive re-sampling from scratch.
+              Non-autoregressive generation offers a powerful paradigm for iterative refinement, allowing models to recursively
+              critique, erase and regenerate arbitrary subsets of tokens. However, existing non-autoregressive models fail to
+              realize this potential. Masked Diffusion Models (MDMs) suffer from factorization error, causing sample quality to
+              collapse when generating multiple tokens simultaneously. Flow Map Language Models (FMLMs) circumvent this bottleneck
+              via joint sequence transport for excellent few-step generation, but sacrifice the inference-time flexibility of MDMs.
             </p>
             <p>
-              We introduce <strong>Posterior Refinement</strong>, a decoding strategy that instead scores tokens <em>a posteriori</em> &mdash; after
-              generating a complete draft sequence &mdash; and selectively re-generates only those tokens whose probability mass falls
-              below a confidence threshold given the full context. This capability requires a model that jointly represents all
-              token positions under a shared generative trajectory, which MDMs cannot provide. We show that Posterior Refinement
-              is naturally enabled by the <strong>Flow Map Language Model (FMLM+)</strong> framework, which learns a continuous transport over
-              the full sequence and thereby exposes a well-defined posterior confidence for each token conditioned on the entire
-              draft. On structured generation benchmarks, Posterior Refinement achieves up to <strong>25&times; fewer function evaluations</strong>
-              than MDM sampling at matched quality.
+              We introduce <strong>FMLM+</strong>, a framework that bridges this gap by equipping FMLM with masking-style noise
+              schedules. While generating the full sequence in a single step, FMLM+ simultaneously scores the global consistency of
+              each token <em>a posteriori</em>. We leverage this to introduce <strong>Posterior Refinement</strong>, a novel
+              inference-time refinement strategy that enables the model to adaptively self-correct its outputs, matching the
+              performance of discrete baselines with <strong>32&times; fewer NFEs</strong>. Across diverse benchmarks, we demonstrate
+              that FMLM+ with Posterior Refinement improves the speed&ndash;quality tradeoff over both MDM and FMLM families,
+              providing a scalable foundation for high-fidelity language modeling.
             </p>
           </div>
         </div>
@@ -276,17 +275,19 @@
         <div class="column is-12">
           <h2 class="title is-3">How Posterior Refinement Works</h2>
           <figure class="image" style="margin: 24px 0;">
-            <img src="figures/overview_sudoku.png" style="width: 100%;">
+            <img src="figures/sudoku_overview.png" style="width: 100%;">
           </figure>
           <div class="content has-text-justified">
             <p>
               <strong>Posterior Refinement lets FMLM+ judge the fit of each token <em>after the fact</em> and fix its own mistakes in parallel.</strong>
-              Starting from a single-pass draft, the model decodes every position, scores each token's posterior probability given the
-              <em>entire</em> draft, and commits only the high-confidence tokens (<span class="legend-chip" style="background:#cfe0db;"></span>committed).
-              The remaining low-confidence (<span class="legend-chip" style="background:#f0d5a8;"></span>) and incorrect
-              (<span class="legend-chip" style="background:#f3c0bc;"></span>) tokens are re-noised
-              (<span class="legend-chip" style="background:#ffffff;"></span>) and regenerated in the next round, now conditioned on the tokens just committed.
-              Over a handful of rounds, the committed region grows until the puzzle is solved &mdash; each round only a single function evaluation.
+              Starting from a single-pass draft, the model decodes every position and scores each token's posterior confidence given the
+              <em>entire</em> draft. It commits only the high-confidence tokens
+              (<span class="legend-chip" style="background:#cfe0db;"></span>correct, high confidence) and re-noises the rest
+              (<span class="legend-chip" style="background:#f0d5a8;"></span>correct but low confidence,
+              <span class="legend-chip" style="background:#f3c0bc;"></span>incorrect &mdash; both low confidence) for the next round,
+              now conditioned on the tokens just committed. Crucially, the model's incorrect tokens consistently fall within its
+              low-confidence set, so refinement reliably filters and revises errors. Over a handful of rounds, the committed region
+              grows until the puzzle is solved.
             </p>
           </div>
         </div>
@@ -302,64 +303,101 @@
           <h2 class="title is-3 has-text-centered">A-Priori vs. A-Posteriori Confidence</h2>
           <div class="content has-text-justified">
             <p>
-              Masked diffusion models predict only <em>token-wise marginal</em> posteriors. To decide which tokens to keep, they estimate
-              confidence <em>a priori</em> &mdash; from noise and context alone, before a full sequence exists. This is fundamentally limited:
-              a token that looks confident in isolation may be globally inconsistent, and because MDM posteriors factorize independently,
-              the model cannot recover from such an error without re-sampling from scratch.
+              Both the MDM denoiser and the FMLM+ single-step denoiser <span style="white-space:nowrap;">&delta;<sub>0,0</sub></span>
+              predict only <em>token-wise marginal</em> posteriors. To decide which tokens to keep, they estimate confidence
+              <em>a priori</em> &mdash; from noise and context alone, before a full sequence exists. This conflates the aleatoric
+              uncertainty of the data with the model's epistemic confidence: a token that looks confident in isolation may be globally
+              inconsistent, and because these marginals factorize independently, the model cannot recover from such an error without
+              re-sampling from scratch.
             </p>
           </div>
 
           <div class="key-idea">
             <p style="margin-bottom: 0;">
-              <strong>Key idea.</strong> Because <strong>FMLM+</strong> transports the <em>entire sequence jointly</em> under a shared flow,
-              it exposes a well-defined <em>posterior</em> confidence for every token <em>given the full draft</em> &mdash; exactly the signal a
-              factorized MDM cannot provide. Posterior Refinement turns this signal into a self-correction loop.
+              <strong>Key idea.</strong> Because <strong>FMLM+</strong> transports the <em>entire sequence jointly</em> under a shared
+              flow, the one-step map <span style="white-space:nowrap;">&delta;<sub>0,1</sub></span> exposes a well-defined
+              <em>posterior</em> confidence for every token <em>given the full draft</em> &mdash; exactly the signal a factorized MDM
+              cannot provide. Posterior Refinement turns this signal into a self-correction loop.
             </p>
           </div>
 
-          <figure class="image" style="margin: 28px auto; max-width: 460px;">
-            <img src="figures/confidence.png" style="width: 100%;">
+          <figure class="image" style="margin: 28px auto; max-width: 600px;">
+            <img src="figures/two_mode_confidence.png" style="width: 100%;">
             <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
-              <strong>Posterior confidence is well-calibrated and global.</strong> On Sudoku, FMLM+'s posterior confidence (<em>p</em><sub>max</sub>)
-              is saturated and stable across the full draft, whereas the MDM's a-priori confidence only sharpens as more clues are revealed
-              one at a time.
+              <strong>Two types of confidence (2-mode toy).</strong> The a-priori denoiser
+              <span style="white-space:nowrap;">&delta;<sub>0,0</sub></span> (left) is flat &mdash; it reports aleatoric uncertainty.
+              The a-posteriori one-step map <span style="white-space:nowrap;">&delta;<sub>0,1</sub></span> (right) is confident almost
+              everywhere, with low confidence concentrating only near the decision boundary where the endpoint is genuinely ambiguous
+              &mdash; it surfaces the model's true <em>epistemic</em> confidence.
             </figcaption>
           </figure>
+
+          <p class="content has-text-justified">
+            This difference is decisive on multi-modal targets. On <strong>unconditional Sudoku</strong>, a-priori confidence &mdash;
+            from both MDLM and FMLM+'s <span style="white-space:nowrap;">&delta;<sub>0,0</sub></span> &mdash; collapses at low NFE,
+            while FMLM+'s a-posteriori <span style="white-space:nowrap;">&delta;<sub>0,1</sub></span> reaches 87% accuracy in just a
+            few evaluations.
+          </p>
+
+          <table class="results-table" style="max-width: 620px; margin: 12px auto;">
+            <thead>
+              <tr>
+                <th rowspan="2" style="text-align:left;">Method</th>
+                <th colspan="5">Unconditional Sudoku (%, &uarr;)</th>
+              </tr>
+              <tr>
+                <th>1</th><th>3</th><th>9</th><th>27</th><th>81</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="text-align:left;">MDLM (Ancestral)</td><td>0</td><td>0</td><td>0</td><td>7.7</td><td>33.8</td></tr>
+              <tr><td style="text-align:left;">MDLM (Confidence)</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>97.2</td></tr>
+              <tr><td style="text-align:left;">FMLM+ (&delta;<sub>0,0</sub>, a-priori)</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>98.8</td></tr>
+              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (&delta;<sub>0,1</sub>, a-posteriori)</strong></td><td><strong>0</strong></td><td><strong>22.2</strong></td><td><strong>87.1</strong></td><td><strong>98.8</strong></td><td><strong>99.6</strong></td></tr>
+            </tbody>
+          </table>
+          <p style="font-size: 0.8rem; color: #999; margin-top: 4px; text-align: center;">
+            Accuracy (%, &uarr;) versus number of function evaluations. A-priori confidence fails catastrophically when sampling
+            multiple tokens at once.
+          </p>
 
           <h3 class="title is-4" style="margin-top: 36px;">FMLM+: Token-wise Noise Schedules</h3>
           <div class="content has-text-justified">
             <p>
-              <strong>FMLM+</strong> generalizes Flow Map Language Models by lifting the single global diffusion time to a <em>per-token</em> time
-              vector <em>t</em> = (<em>t</em><sup>1</sup>, &hellip;, <em>t</em><sup>L</sup>). Pinning <em>t</em><sup>l</sup> = 1 freezes a position
-              at its clean value to act as conditioning context, while <em>t</em><sup>l</sup> &lt; 1 leaves it noised. This inherits the
-              <strong>few-step efficiency of FMLM</strong> and the <strong>any-order inference flexibility of MDMs</strong> &mdash; recovering parallel,
-              block-diffusion, and confidence-based sampling as special cases &mdash; without any architectural changes for conditioning.
+              <strong>FMLM+</strong> generalizes Flow Map Language Models by lifting the single global diffusion time to a
+              <em>per-token</em> time vector <em>t</em> = (<em>t</em><sup>1</sup>, &hellip;, <em>t</em><sup>L</sup>). Pinning
+              <em>t</em><sup>l</sup> = 1 freezes a position at its clean value to act as conditioning context, while
+              <em>t</em><sup>l</sup> &lt; 1 leaves it noised. Implemented as a per-position time in the DiT's adaptive layer norm,
+              this needs <strong>no architectural changes for conditioning</strong>: it inherits the
+              <strong>few-step efficiency of FMLM</strong> and the <strong>any-order inference flexibility of MDMs</strong>,
+              recovering parallel, block-diffusion, and confidence-based sampling as special cases.
             </p>
           </div>
 
           <h3 class="title is-4" style="margin-top: 36px;">The Posterior Refinement Loop</h3>
           <div class="algo-box">
             <div class="title-line">Algorithm&nbsp;&mdash;&nbsp;Posterior Refinement</div>
-<span class="cm"># delta_s_t: two-time denoiser &nbsp; p: confidence threshold &nbsp; N: refinement rounds</span>
+<span class="cm"># delta: two-time denoiser &nbsp; C: commit criterion &nbsp; R: refinement rounds</span>
 
-x_0 = <span class="fn">randn</span>(L, V)
-s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
+x = <span class="fn">randn</span>(L, V)
+s, t = <span class="fn">zeros</span>(L), <span class="fn">ones</span>(L)
 
-<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(N):
-&nbsp;&nbsp;&nbsp;&nbsp;x_1_hat = <span class="fn">delta_s_t</span>(x_0, s, t)   <span class="cm"># one forward pass: full draft</span>
-&nbsp;&nbsp;&nbsp;&nbsp;confident_idx = x_1_hat.<span class="fn">max</span>(axis=1) &gt; p  <span class="cm"># a-posteriori confidence</span>
-&nbsp;&nbsp;&nbsp;&nbsp;decoded = x_1_hat.<span class="fn">argmax</span>(axis=1)
-&nbsp;&nbsp;&nbsp;&nbsp;retained = <span class="fn">one_hot</span>(decoded)[confident_idx]
-&nbsp;&nbsp;&nbsp;&nbsp;x_0[confident_idx] = retained         <span class="cm"># commit high-confidence tokens</span>
-&nbsp;&nbsp;&nbsp;&nbsp;s[confident_idx] = 1                  <span class="cm"># freeze them; re-noise the rest</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(R):
+&nbsp;&nbsp;&nbsp;&nbsp;x_1    = <span class="fn">delta</span>(x, s, t, flow_steps)   <span class="cm"># draft the full sequence</span>
+&nbsp;&nbsp;&nbsp;&nbsp;tokens = x_1.<span class="fn">argmax</span>(axis=1)
+&nbsp;&nbsp;&nbsp;&nbsp;commit = <span class="fn">C</span>(tokens, x_1)            <span class="cm"># a-posteriori confidence &gt; p</span>
+&nbsp;&nbsp;&nbsp;&nbsp;x = <span class="fn">where</span>(commit, <span class="fn">one_hot</span>(tokens), <span class="fn">randn</span>(L, V))  <span class="cm"># keep / re-noise</span>
+&nbsp;&nbsp;&nbsp;&nbsp;s = <span class="fn">where</span>(commit, 1, 0)         <span class="cm"># freeze committed positions</span>
 
-<span class="kw">return</span> x_1_hat
+<span class="kw">return</span> x_1
           </div>
           <div class="content has-text-justified">
             <p>
-              Each round costs a <strong>single function evaluation</strong>: generate a full draft, keep the tokens whose posterior probability
-              exceeds the threshold <em>p</em>, and re-noise the rest for the next round. Lower <em>p</em> commits faster (fewer rounds, lower quality);
-              higher <em>p</em> is more conservative and converges to higher quality.
+              Each round drafts a full sequence (one, or a few, function evaluations), keeps the tokens whose posterior probability
+              <em>p</em><sub>max</sub> exceeds a threshold <em>p</em>, and re-noises the rest for the next round. To avoid stalling
+              when no position clears the bar, at least <em>k</em> positions are committed by top-<em>k</em> confidence. Lower
+              <em>p</em> commits faster (fewer rounds, lower quality); higher <em>p</em> is more conservative and converges to higher
+              quality.
             </p>
           </div>
         </div>
@@ -375,19 +413,20 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
           <h2 class="title is-3">Results</h2>
 
           <div class="highlight-box">
-            <div class="big-number">25&times;</div>
-            <div class="subtitle-text">fewer function evaluations &mdash; FMLM+ (PR) surpasses every 128-NFE baseline on Sudoku at just 5 NFEs</div>
+            <div class="big-number">32&times;</div>
+            <div class="subtitle-text">fewer function evaluations &mdash; FMLM+ with Posterior Refinement matches or surpasses the strongest baselines across four benchmarks</div>
           </div>
 
           <!-- Posterior Refinement results -->
           <h3 class="title is-4" style="margin-top: 32px;">Posterior Refinement</h3>
           <div class="content has-text-justified">
             <p>
-              Posterior Refinement delivers large efficiency gains across all four benchmarks. On <strong>Sudoku</strong>, FMLM+ (PR) reaches
-              96.8&thinsp;/&thinsp;90.9&thinsp;/&thinsp;70.6 (Easy/Med./Hard) at just <strong>5 NFEs</strong> &mdash; surpassing every baseline evaluated at 128 NFEs.
-              On <strong>TinyStories</strong>, 16 NFEs reach generative perplexity 9.88, nearly matching autoregressive sampling (8.89 at 128 NFEs)
-              and outperforming every diffusion baseline by a wide margin. On <strong>GSM8K</strong>, FMLM+ (PR) reaches 19.2% zero-shot accuracy &mdash;
-              a 3&times; improvement over the base FMLM+ model at 8&times; fewer evaluations.
+              Posterior Refinement delivers large efficiency gains across all four benchmarks. On <strong>Sudoku</strong>, FMLM+
+              reaches 97.9&thinsp;/&thinsp;92.0&thinsp;/&thinsp;71.2 (Easy/Med./Hard) at just <strong>4 NFEs</strong> &mdash;
+              surpassing every baseline evaluated at 128&ndash;1024 NFEs. On <strong>GSM8K</strong>, it reaches 19.0% zero-shot
+              accuracy at <strong>32 NFEs</strong>, a 32&times; speedup over the strongest non-autoregressive baselines at matched
+              accuracy. On <strong>TinyStories</strong> and <strong>OpenWebText</strong>, FMLM+ matches or surpasses every diffusion
+              baseline with up to <strong>8&times; fewer evaluations</strong>.
             </p>
           </div>
 
@@ -408,7 +447,7 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
             <tbody>
               <tr class="group-row"><td colspan="7">Autoregressive</td></tr>
               <tr><td style="text-align:left;">Sample</td><td>128</td><td>8.89</td><td>4.01</td><td>1024</td><td>35.45</td><td>5.58</td></tr>
-              <tr><td style="text-align:left;">Greedy</td><td>128</td><td>5.34</td><td>4.06</td><td>1024</td><td>1.07</td><td>1.65</td></tr>
+              <tr><td style="text-align:left;">Greedy</td><td>128</td><td>5.34</td><td>4.06</td><td>1024</td><td>1.07</td><td class="bad-val">1.65</td></tr>
               <tr class="group-row"><td colspan="7">Discrete Diffusion</td></tr>
               <tr><td style="text-align:left;">MDLM</td><td>128</td><td>18.74</td><td>4.03</td><td>1024</td><td>105.15</td><td>5.63</td></tr>
               <tr><td style="text-align:left;">Duo</td><td>128</td><td>22.73</td><td>4.05</td><td>1024</td><td>77.69</td><td>5.55</td></tr>
@@ -416,8 +455,7 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
               <tr><td style="text-align:left;">CANDI</td><td>128</td><td>46.32</td><td>4.04</td><td>1024</td><td>143.13</td><td>5.71</td></tr>
               <tr><td style="text-align:left;">FLM</td><td>128</td><td>57.50</td><td>4.17</td><td>1024</td><td>62.23</td><td>5.33</td></tr>
               <tr><td style="text-align:left;">S-FLM</td><td>128</td><td>95.25</td><td>4.08</td><td>1024</td><td>123.87</td><td>5.52</td></tr>
-              <tr><td style="text-align:left;">FMLM+</td><td>128</td><td>36.40</td><td>4.11</td><td>1024</td><td>&mdash;</td><td>&mdash;</td></tr>
-              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (PR)</strong></td><td><strong>16</strong></td><td><strong>9.88</strong></td><td><strong>3.87</strong></td><td><strong>16</strong></td><td><strong>&mdash;</strong></td><td><strong>&mdash;</strong></td></tr>
+              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (PR)</strong></td><td><strong>32</strong></td><td><strong>17.53</strong></td><td><strong>3.96</strong></td><td><strong>128</strong></td><td><strong>66.6</strong></td><td><strong>5.21</strong></td></tr>
             </tbody>
           </table>
 
@@ -443,77 +481,76 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
               <tr><td style="text-align:left;">MDLM</td><td>128</td><td>92.0</td><td>77.1</td><td>30.2</td><td>1024</td><td>18.0</td></tr>
               <tr><td style="text-align:left;">Duo</td><td>128</td><td>96.3</td><td>84.7</td><td>58.4</td><td>1024</td><td>17.2</td></tr>
               <tr class="group-row"><td colspan="7">Continuous Diffusion</td></tr>
-              <tr><td style="text-align:left;">CANDI</td><td>128</td><td>79.3</td><td>45.9</td><td>16.7</td><td>1024</td><td>0.2</td></tr>
-              <tr><td style="text-align:left;">FLM</td><td>128</td><td>94.2</td><td>82.7</td><td>44.5</td><td>1024</td><td>0.3</td></tr>
+              <tr><td style="text-align:left;">CANDI</td><td>128</td><td>79.3</td><td>45.9</td><td>16.7</td><td>1024</td><td class="bad-val">0.2</td></tr>
+              <tr><td style="text-align:left;">FLM</td><td>128</td><td>94.2</td><td>82.7</td><td>44.5</td><td>1024</td><td class="bad-val">0.3</td></tr>
               <tr><td style="text-align:left;">S-FLM</td><td>128</td><td>94.8</td><td>85.2</td><td>45.0</td><td>1024</td><td>18.0</td></tr>
-              <tr><td style="text-align:left;">FMLM+</td><td>128</td><td>90.2</td><td>72.8</td><td>37.2</td><td>1024</td><td>6.0</td></tr>
-              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (PR)</strong></td><td><strong>5</strong></td><td><strong>96.8</strong></td><td><strong>90.9</strong></td><td><strong>70.6</strong></td><td><strong>128</strong></td><td><strong>19.2</strong></td></tr>
+              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (PR)</strong></td><td><strong>4</strong></td><td><strong>97.9</strong></td><td><strong>92.0</strong></td><td><strong>71.2</strong></td><td><strong>32</strong></td><td><strong>19.0</strong></td></tr>
             </tbody>
           </table>
           <p style="font-size: 0.8rem; color: #999; margin-top: 8px; text-align: center;">
-            Baselines run at up to 1024 NFEs; FMLM+ (PR) matches or surpasses them with 8&ndash;25&times; fewer function evaluations.
-            (OpenWebText PR result pending final checkpoint.)
+            Baselines run at up to 1024 NFEs; FMLM+ (PR) matches or surpasses them with 8&ndash;32&times; fewer function evaluations.
           </p>
-
-          <!-- Flexible inference -->
-          <h3 class="title is-4" style="margin-top: 48px;">Flexible Inference</h3>
-          <div class="content has-text-justified">
-            <p>
-              Where FMLM's single global time admits only a one-dimensional trade-off in the number of steps, FMLM+ opens a
-              <strong>two-dimensional plane</strong> over block size and steps-per-block, recovering FMLM as a special case. At matched compute,
-              spending the budget on smaller sequential blocks rather than more steps within a single block substantially improves
-              quality &mdash; reaching generative perplexity 8 versus 73 at 128 NFEs on TinyStories.
-            </p>
-          </div>
-          <figure class="image" style="margin: 24px auto; max-width: 600px;">
-            <img src="figures/flexible_inference.png" style="width: 100%;">
-            <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
-              <strong>Block diffusion with FMLM+.</strong> Generative perplexity (&darr;) on TinyStories across number of blocks and
-              steps-per-block; dashed diagonals connect equal-NFE configurations. More sequential blocks (vertical axis) makes better
-              use of compute than more steps per block (horizontal axis).
-            </figcaption>
-          </figure>
 
           <!-- Connection to MDM -->
           <h3 class="title is-4" style="margin-top: 48px;">Connection to Masked Diffusion</h3>
           <div class="content has-text-justified">
             <p>
-              Masked diffusion arises as the boundary of the FMLM+ training objective. This correspondence makes the growing pool of
-              pretrained MDMs directly usable to accelerate FMLM+ training, via either <strong>distillation</strong> or direct <strong>warm-starting</strong>.
-              Warm-starting from a pretrained MDLM, <strong>FMLM+ (Init)</strong>, performs best across all NFE budgets &mdash; with its largest margins
-              in the few-step regime, evidence that FMLM+ is less susceptible than MDLM to the factorization error of parallel decoding.
+              The masked diffusion objective is exactly the boundary case <span style="white-space:nowrap;">s = t = 0</span> of the
+              FMLM+ training objective. This correspondence makes the growing pool of pretrained MDMs directly usable to accelerate
+              FMLM+ training, via either <strong>distillation</strong> (using the MDM as a teacher) or direct <strong>warm-starting</strong>
+              from its weights. Warm-starting, <strong>FMLM+ (Init)</strong>, performs best across every NFE budget &mdash; with its
+              largest margins in the few-step regime, evidence that FMLM+ is less susceptible than MDLM to the factorization error of
+              parallel decoding.
             </p>
           </div>
           <figure class="image" style="margin: 24px 0;">
-            <img src="figures/speedup_accuracy.png" style="width: 100%;">
+            <img src="figures/leveraging_mdms.png" style="width: 100%;">
             <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
-              <strong>Accuracy vs. speed-up</strong> on GSM8K (left) and Sudoku (right). Warm-starting and distilling from an MDM teacher lifts
-              FMLM+ across the board, with FMLM+ (Init) strongest at every budget &mdash; especially at high speed-ups (small NFE).
+              <strong>Improved training for FMLM+.</strong> <em>Left:</em> zero-shot GSM8K accuracy under 32 rounds of Posterior
+              Refinement &mdash; both teacher-based variants beat training from scratch. <em>Right:</em> training loss &mdash;
+              warm-starting converges faster and to a better optimum.
             </figcaption>
           </figure>
 
-          <table class="results-table" style="max-width: 760px; margin-left:auto; margin-right:auto;">
+          <table class="results-table" style="max-width: 720px; margin-left:auto; margin-right:auto;">
             <thead>
               <tr>
                 <th rowspan="2" style="text-align:left;">Method</th>
-                <th colspan="5">Sudoku (NFE)</th>
-                <th colspan="5">GSM8K (NFE)</th>
+                <th colspan="7">GSM8K (%, &uarr;) by NFE</th>
               </tr>
               <tr>
-                <th>1</th><th>3</th><th>9</th><th>27</th><th>81</th>
-                <th>32</th><th>64</th><th>128</th><th>256</th><th>512</th>
+                <th>1</th><th>2</th><th>4</th><th>8</th><th>16</th><th>32</th><th>64</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td style="text-align:left;">MDLM</td><td>1.5</td><td>10.9</td><td>24.1</td><td>35.0</td><td>50.1</td><td>0.4</td><td>0.5</td><td>2.6</td><td>9.6</td><td>25.3</td></tr>
-              <tr><td style="text-align:left;">FMLM+</td><td>2.7</td><td>9.6</td><td>20.7</td><td>32.6</td><td>38.3</td><td>0.4</td><td>1.3</td><td>4.6</td><td>8.7</td><td>12.7</td></tr>
-              <tr><td style="text-align:left;">FMLM+ (Distill)</td><td>7.2</td><td>18.5</td><td>31.8</td><td>42.2</td><td>49.1</td><td>0.8</td><td>3.8</td><td>8.9</td><td>13.9</td><td>19.8</td></tr>
-              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (Init)</strong></td><td><strong>7.3</strong></td><td><strong>21.7</strong></td><td><strong>36.0</strong></td><td><strong>48.1</strong></td><td><strong>54.0</strong></td><td><strong>2.6</strong></td><td><strong>7.4</strong></td><td><strong>14.3</strong></td><td><strong>21.2</strong></td><td><strong>28.0</strong></td></tr>
+              <tr><td style="text-align:left;">MDLM (Teacher)</td><td>0.0</td><td>0.0</td><td>0.1</td><td>0.6</td><td>4.7</td><td>9.0</td><td>13.4</td></tr>
+              <tr><td style="text-align:left;">FMLM+</td><td>0.0</td><td>0.1</td><td>2.9</td><td>8.7</td><td>13.4</td><td>19.0</td><td>19.1</td></tr>
+              <tr><td style="text-align:left;">FMLM+ (Distill)</td><td>0.3</td><td>0.4</td><td>3.9</td><td>10.3</td><td>18.7</td><td>21.6</td><td>23.4</td></tr>
+              <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (Init)</strong></td><td><strong>0.3</strong></td><td><strong>0.7</strong></td><td><strong>5.1</strong></td><td><strong>15.1</strong></td><td><strong>26.1</strong></td><td><strong>31.8</strong></td><td><strong>33.6</strong></td></tr>
             </tbody>
           </table>
           <p style="font-size: 0.8rem; color: #999; margin-top: 8px; text-align: center;">
-            Solve-rate accuracy (%, &uarr;) on conditional Sudoku and zero-shot GSM8K under block-diffusion inference (NFE set by block size).
+            Zero-shot GSM8K accuracy (%, &uarr;) under Posterior Refinement, comparing three FMLM+ training strategies against the
+            MDM teacher.
           </p>
+
+          <h4 class="title is-5" style="margin-top: 36px;">Why warm-starting works</h4>
+          <div class="content has-text-justified">
+            <p>
+              It is surprising that pretraining on <strong>[MASK]</strong> tokens should help process Gaussian-noise inputs. Inspecting
+              the DiT's first adaptive layer norm reveals the mechanism: at <span style="white-space:nowrap;">t = 0</span> (pure noise),
+              FMLM+'s post-adaLN activations stay highly aligned with the teacher's <strong>[MASK]</strong> activations &mdash; the
+              layer maps Gaussian noise onto the same representation the teacher produced for masks, handing downstream layers an
+              in-distribution input and preserving pretrained knowledge.
+            </p>
+          </div>
+          <figure class="image" style="margin: 24px auto; max-width: 480px;">
+            <img src="figures/adaln_adaptation.png" style="width: 100%;">
+            <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
+              <strong>adaLN activations.</strong> At <em>t</em> = 0, FMLM+'s noisy-input activations align with the MDM's
+              <strong>[MASK]</strong> activation while staying uncorrelated with other tokens.
+            </figcaption>
+          </figure>
 
         </div>
       </div>
@@ -525,7 +562,7 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
     <div class="container is-max-desktop content">
       <h2 class="title">BibTeX</h2>
       <pre><code>@article{agarwal2026posterior,
-    title={Posterior Refinement: Any-Order Language Generation via Flow Maps},
+    title={Posterior Refinement: Fast Language Generation via Any-Order Flow Maps},
     author={Manan Agarwal and Sheel Shah and Chanhyuk Lee
             and Jaehoon Yoo and Jerry Huang and Seunghoon Hong
             and Aditi Raghunathan and Jinwoo Kim and Nicholas M. Boffi},
@@ -539,7 +576,7 @@ s = <span class="fn">zeros</span>(L);  t = <span class="fn">ones</span>(L)
   <footer class="footer">
     <div class="container">
       <div class="content has-text-centered">
-        <a class="icon-link" href="https://github.com/MananAg007/fmlm_plus">
+        <a class="icon-link" href="https://github.com/MananAg007/posterior-refinement">
           <i class="fab fa-github"></i>
         </a>
       </div>
