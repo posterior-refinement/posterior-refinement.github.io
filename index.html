@@ -375,22 +375,6 @@
           </div>
 
           <h3 class="title is-4" style="margin-top: 36px;">The Posterior Refinement Loop</h3>
-          <div class="algo-box">
-            <div class="title-line">Algorithm&nbsp;&mdash;&nbsp;Posterior Refinement</div>
-<span class="cm"># delta: two-time denoiser &nbsp; C: commit criterion &nbsp; R: refinement rounds</span>
-
-x = <span class="fn">randn</span>(L, V)
-s, t = <span class="fn">zeros</span>(L), <span class="fn">ones</span>(L)
-
-<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(R):
-&nbsp;&nbsp;&nbsp;&nbsp;x_1    = <span class="fn">delta</span>(x, s, t, flow_steps)   <span class="cm"># draft the full sequence</span>
-&nbsp;&nbsp;&nbsp;&nbsp;tokens = x_1.<span class="fn">argmax</span>(axis=1)
-&nbsp;&nbsp;&nbsp;&nbsp;commit = <span class="fn">C</span>(tokens, x_1)            <span class="cm"># a-posteriori confidence &gt; p</span>
-&nbsp;&nbsp;&nbsp;&nbsp;x = <span class="fn">where</span>(commit, <span class="fn">one_hot</span>(tokens), <span class="fn">randn</span>(L, V))  <span class="cm"># keep / re-noise</span>
-&nbsp;&nbsp;&nbsp;&nbsp;s = <span class="fn">where</span>(commit, 1, 0)         <span class="cm"># freeze committed positions</span>
-
-<span class="kw">return</span> x_1
-          </div>
           <div class="content has-text-justified">
             <p>
               Each round drafts a full sequence (one, or a few, function evaluations), keeps the tokens whose posterior probability
@@ -533,24 +517,6 @@ s, t = <span class="fn">zeros</span>(L), <span class="fn">ones</span>(L)
             Zero-shot GSM8K accuracy (%, &uarr;) under Posterior Refinement, comparing three FMLM+ training strategies against the
             MDM teacher.
           </p>
-
-          <h4 class="title is-5" style="margin-top: 36px;">Why warm-starting works</h4>
-          <div class="content has-text-justified">
-            <p>
-              It is surprising that pretraining on <strong>[MASK]</strong> tokens should help process Gaussian-noise inputs. Inspecting
-              the DiT's first adaptive layer norm reveals the mechanism: at <span style="white-space:nowrap;">t = 0</span> (pure noise),
-              FMLM+'s post-adaLN activations stay highly aligned with the teacher's <strong>[MASK]</strong> activations &mdash; the
-              layer maps Gaussian noise onto the same representation the teacher produced for masks, handing downstream layers an
-              in-distribution input and preserving pretrained knowledge.
-            </p>
-          </div>
-          <figure class="image" style="margin: 24px auto; max-width: 480px;">
-            <img src="figures/adaln_adaptation.png" style="width: 100%;">
-            <figcaption class="has-text-centered" style="margin-top: 10px; font-size: 0.85rem; color: #666;">
-              <strong>adaLN activations.</strong> At <em>t</em> = 0, FMLM+'s noisy-input activations align with the MDM's
-              <strong>[MASK]</strong> activation while staying uncorrelated with other tokens.
-            </figcaption>
-          </figure>
 
         </div>
       </div>
