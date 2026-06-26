@@ -228,7 +228,7 @@
               <ul>
                 <!-- <li><strong>The Goal:</strong> Iterative refinement is the ability to adaptively self-correct a generation by evaluating a full draft globally, anchoring valid tokens, and rewriting mistakes. Non-AR generation offers the right paradigm for this.</li> -->
                 <li><strong>The Problem:</strong> Discrete diffusion models promise iterative refinement, but sampling independent marginals causes factorization error and collapses performance. The generate, erase, repeat loop becomes infeasible when every single generation takes several function evaluations.</li>
-                <li><strong>The Missing Piece:</strong> Flow Map Language Models (FMLMs) fix this factorization error via joint transport between Gaussian noise and one-hot data<!-- , but lack the flexibility of masked diffusion and some measure of confidence. --></li>
+                <li><strong>The Missing Piece:</strong> Flow Map Language Models (FMLMs) fix this factorization error via joint transport between Gaussian noise and one-hot data.<!-- , but lack the flexibility of masked diffusion and some measure of confidence. --></li>
                 <li><strong>The Solution:</strong> We put it all together. Masking-style FMLM enables <strong>Posterior Refinement</strong>, letting the model self-correct based on a full draft sequence with a novel a posteriori confidence signal.</li>
                 <li><strong>The Result:</strong> SOTA speed-quality tradeoff, matching discrete baselines with 32&times; fewer NFEs.</li>
               </ul>
@@ -388,9 +388,6 @@
               <tr class="ours-row"><td style="text-align:left;"><strong>FMLM+ (PR)</strong></td><td><strong>4</strong></td><td><strong>97.9</strong></td><td><strong>92.0</strong></td><td><strong>71.2</strong></td><td><strong>32</strong></td><td><strong>19.0</strong></td></tr>
             </tbody>
           </table>
-          <p style="font-size: 0.8rem; color: #999; margin-top: 8px; text-align: center;">
-            Baselines run at up to 1024 NFEs; FMLM+ (PR) matches or surpasses them with 8&ndash;32&times; fewer function evaluations.
-          </p>
 
           <!-- Unconditional table -->
           <h4 class="title is-5" style="margin-top: 24px; margin-bottom: 8px;">Unconditional generation</h4>
@@ -457,8 +454,7 @@
             </tbody>
           </table>
           <p style="font-size: 0.8rem; color: #999; margin-top: 8px; text-align: center;">
-            GSM8K accuracy (%, &uarr;) under Posterior Refinement, comparing three FMLM+ training strategies against the
-            MDM teacher.
+            GSM8K accuracy (%, &uarr;) under Posterior Refinement, comparing three FMLM+ training strategies against the MDM teacher.
           </p>
 
           <figure class="image" style="margin: 24px 0;">
@@ -524,8 +520,7 @@
               the one-step FMLM &delta;<sub>0,1</sub> outputs high confidence for most inputs.
               Low-confidence regions concentrate near decision boundaries, where the endpoint is ambiguous,
               indicating &delta;<sub>0,1</sub> captures the epistemic confidence of the model.
-              In contrast, &delta;<sub>0,0</sub> is flat for all inputs, reflecting its
-              aleatoric nature.
+              In contrast, &delta;<sub>0,0</sub> is flat for all inputs, reflecting its aleatoric nature.
             </p>
           </div>
         </div>
